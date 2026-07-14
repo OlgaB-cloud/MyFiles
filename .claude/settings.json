@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "ask": [
+      "Bash(rm *)",
+      "Bash(rmdir *)",
+      "Bash(git rm *)",
+      "Bash(unlink *)",
+      "Bash(shred *)",
+      "Bash(trash *)",
+      "Bash(find * -delete)",
+      "Bash(find * -exec rm *)",
+      "mcp__github__delete_file",
+      "mcp__Google_Drive__delete_file"
+    ]
+  }
+}
