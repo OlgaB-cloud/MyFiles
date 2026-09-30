@@ -1,0 +1,46 @@
+name: Avito → Telegram
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: avito-mail-to-telegram
+  cancel-in-progress: false
+
+jobs:
+  check-mail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: avito_tg_bot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      # Список уже пересланных писем хранится в кэше между запусками.
+      - uses: actions/cache/restore@v4
+        with:
+          path: avito_tg_bot/state.json*
+          key: avito-mail-state-${{ github.run_id }}
+          restore-keys: avito-mail-state-
+
+      - run: python mail_bot.py
+        env:
+          MAIL_USER: ${{ secrets.MAIL_USER }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: avito_tg_bot/state.json*
+          key: avito-mail-state-${{ github.run_id }}
