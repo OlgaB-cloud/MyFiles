@@ -1,8 +1,8 @@
 {
   "spec": {
     "title": "Загрузка начислений Fansy из Excel в 1С:ЗУП: приём новых, начисления, ведомость 4dev",
-    "version": "1.0",
-    "date": "2026-09-30",
+    "version": "1.1",
+    "date": "2026-10-02",
     "human_readable_spec": "ТЗ_1С_автоначисление_скаутов_Fansy.md",
     "configuration": "1С:Зарплата и управление персоналом 3.1",
     "implementation": {
@@ -14,35 +14,197 @@
     },
     "organization": "Fansy"
   },
-
+  "telegram_source": {
+    "chat_invite_link": "https://t.me/+MkKkPuP3QsUyYWZi",
+    "note": "Ссылка-приглашение нужна только чтобы администратор добавил бота в чат; обработка работает через Bot API по chat_id",
+    "api": "Telegram Bot API, https://api.telegram.org",
+    "bot_setup": [
+      "Создать бота через @BotFather",
+      "Добавить бота в чат",
+      "Отключить privacy mode (/setprivacy -> Disable) или сделать бота администратором чата"
+    ],
+    "bot_token_storage": "Безопасное хранилище 1С",
+    "chat_id": "задаётся в настройках (вида -100…); сообщения из других чатов игнорировать",
+    "allowed_senders": "опционально: список Telegram user_id в настройках; пусто = любой участник чата",
+    "receive": {
+      "method": "getUpdates (long polling)",
+      "alternative": "webhook, если сервер 1С доступен из интернета",
+      "proxy": "по настройке"
+    },
+    "file_filter": {
+      "message_type": "document",
+      "extension": ".xlsx",
+      "name_mask_default": "*Fansy*.xlsx",
+      "must_contain_sheet": "Данные для расчета"
+    },
+    "download": "getFile -> https://api.telegram.org/file/bot<token>/<file_path>; лимит Bot API 20 МБ",
+    "pick_rule": "если за период несколько файлов — последний по дате сообщения",
+    "period_source": "ячейка B3 внутри файла, не дата сообщения",
+    "processed_files_register": {
+      "type": "InformationRegister",
+      "name": "ЗагруженныеФайлыTelegramFansy",
+      "fields": [
+        "chat_id",
+        "message_id",
+        "file_unique_id",
+        "ИмяФайла",
+        "Отправитель",
+        "ДатаСообщения",
+        "Период",
+        "Статус",
+        "СозданныеДокументы"
+      ],
+      "dedup_key": "file_unique_id"
+    },
+    "new_file_same_period": "перезаполнить документы месяца по правилам duplicates: непроведённые автоматически, проведённые — только с подтверждением",
+    "scheduled_job": {
+      "name": "ЗагрузкаНачисленийFansyИзTelegram",
+      "default_schedule": "каждые 30 минут",
+      "posting": "документы не проводить"
+    },
+    "manual": [
+      "Кнопка 'Загрузить из Telegram' в форме (последний подходящий файл, затем предпросмотр)",
+      "Ручной выбор .xlsx с диска как запасной вариант"
+    ],
+    "reply_to_chat": {
+      "enabled_setting": true,
+      "reply_to": "сообщение с файлом",
+      "content": [
+        "период",
+        "суммы оклад / премия / ведомость 4dev и совпадение с ИТОГО",
+        "число заведённых сотрудников",
+        "число пропущенных строк"
+      ],
+      "never_include": "ФИО и суммы по конкретным людям"
+    }
+  },
   "source": {
     "file_format": "xlsx",
     "file_example": "Выплаты Fansy 2026.xlsx",
     "sheet_default": "Данные для расчета",
-    "sheets_ignore": ["Лист1", "Info", "Данные для расчета (01.03)", "Данные для расчета 01.02.24", "Данные для расчета-январь 24"],
+    "sheets_ignore": [
+      "Лист1",
+      "Info",
+      "Данные для расчета (01.03)",
+      "Данные для расчета 01.02.24",
+      "Данные для расчета-январь 24"
+    ],
     "period_cell": "B3",
     "period_label_cell": "A3",
     "header_row": 5,
     "first_data_row": 6,
-    "stop_marker": { "column": "Сотрудник", "value": "ИТОГО" },
+    "stop_marker": {
+      "column": "Сотрудник",
+      "value": "ИТОГО"
+    },
     "read_calculated_values": true,
     "columns_match_by": "header_text",
     "columns": [
-      { "header": "Сотрудник",          "col_aug2026": "A", "field": "fio",           "type": "string", "required": true },
-      { "header": "Должность",          "col_aug2026": "B", "field": "position",      "type": "string", "use": "new_employee_mapping" },
-      { "header": "проект",             "col_aug2026": "C", "field": "project",       "type": "string", "use": "info" },
-      { "header": "Способ оплаты",      "col_aug2026": "D", "field": "payment_method","type": "string", "use": "payroll_statement_filter" },
-      { "header": "НПД",                "col_aug2026": "E", "field": "npd",           "type": "number", "use": "info" },
-      { "header": "Валюта",             "col_aug2026": "F", "field": "currency",      "type": "string", "use": "filter" },
-      { "header": "Часы",               "col_aug2026": "G", "field": "hours",         "type": "number", "use": "info" },
-      { "header": "Минуты",             "col_aug2026": "H", "field": "minutes",       "type": "number", "use": "info" },
-      { "header": "Часовая ставка",     "col_aug2026": "I", "field": "hourly_rate",   "type": "number", "use": "info" },
-      { "header": "Сдельный заработок", "col_aug2026": "J", "field": "piecework",     "type": "number", "use": "salary" },
-      { "header": "Оклад",              "col_aug2026": "K", "field": "salary",        "type": "number", "use": "salary" },
-      { "header": "Премия",             "col_aug2026": "L", "field": "bonus",         "type": "number", "use": "bonus" },
-      { "header": "Прочие начисления",  "col_aug2026": "M", "field": "other",         "type": "number", "use": "bonus" },
-      { "header": "Итого",              "col_aug2026": "N", "field": "total",         "type": "number", "use": "control_and_statement_amount" },
-      { "header": "Комментарии",        "col_aug2026": "O", "field": "comment",       "type": "string", "use": "hire_date_parse" }
+      {
+        "header": "Сотрудник",
+        "col_aug2026": "A",
+        "field": "fio",
+        "type": "string",
+        "required": true
+      },
+      {
+        "header": "Должность",
+        "col_aug2026": "B",
+        "field": "position",
+        "type": "string",
+        "use": "new_employee_mapping"
+      },
+      {
+        "header": "проект",
+        "col_aug2026": "C",
+        "field": "project",
+        "type": "string",
+        "use": "info"
+      },
+      {
+        "header": "Способ оплаты",
+        "col_aug2026": "D",
+        "field": "payment_method",
+        "type": "string",
+        "use": "payroll_statement_filter"
+      },
+      {
+        "header": "НПД",
+        "col_aug2026": "E",
+        "field": "npd",
+        "type": "number",
+        "use": "info"
+      },
+      {
+        "header": "Валюта",
+        "col_aug2026": "F",
+        "field": "currency",
+        "type": "string",
+        "use": "filter"
+      },
+      {
+        "header": "Часы",
+        "col_aug2026": "G",
+        "field": "hours",
+        "type": "number",
+        "use": "info"
+      },
+      {
+        "header": "Минуты",
+        "col_aug2026": "H",
+        "field": "minutes",
+        "type": "number",
+        "use": "info"
+      },
+      {
+        "header": "Часовая ставка",
+        "col_aug2026": "I",
+        "field": "hourly_rate",
+        "type": "number",
+        "use": "info"
+      },
+      {
+        "header": "Сдельный заработок",
+        "col_aug2026": "J",
+        "field": "piecework",
+        "type": "number",
+        "use": "salary"
+      },
+      {
+        "header": "Оклад",
+        "col_aug2026": "K",
+        "field": "salary",
+        "type": "number",
+        "use": "salary"
+      },
+      {
+        "header": "Премия",
+        "col_aug2026": "L",
+        "field": "bonus",
+        "type": "number",
+        "use": "bonus"
+      },
+      {
+        "header": "Прочие начисления",
+        "col_aug2026": "M",
+        "field": "other",
+        "type": "number",
+        "use": "bonus"
+      },
+      {
+        "header": "Итого",
+        "col_aug2026": "N",
+        "field": "total",
+        "type": "number",
+        "use": "control_and_statement_amount"
+      },
+      {
+        "header": "Комментарии",
+        "col_aug2026": "O",
+        "field": "comment",
+        "type": "string",
+        "use": "hire_date_parse"
+      }
     ],
     "reading_rules": [
       "Пропускать строки с пустым ФИО",
@@ -54,35 +216,66 @@
       "Нулевые суммы не загружать (отдельно для оклада и премии)"
     ],
     "computed_fields": {
-      "salary_amount": { "formula": "round(piecework + salary, 2)", "note": "Сдельный заработок идёт в оклад. Округлять сумму, а не слагаемые" },
-      "bonus_amount":  { "formula": "round(bonus + other, 2)" },
-      "in_payroll_statement": { "formula": "normalize(payment_method) == '4dev'" }
-    }
+      "salary_amount": {
+        "formula": "round(piecework + salary, 2)",
+        "note": "Сдельный заработок идёт в оклад. Округлять сумму, а не слагаемые"
+      },
+      "bonus_amount": {
+        "formula": "round(bonus + other, 2)"
+      },
+      "in_payroll_statement": {
+        "formula": "normalize(payment_method) == '4dev'"
+      }
+    },
+    "delivery": "telegram_source (основной), ручной выбор файла (запасной)"
   },
-
   "employee_matching": {
     "scope": "Сотрудники организации Fansy",
-    "order": ["register_mapping", "fio_normalized"],
+    "order": [
+      "register_mapping",
+      "fio_normalized"
+    ],
     "mapping_register": {
       "type": "InformationRegister",
       "name": "СопоставлениеФИОExcelFansy",
-      "dimensions": [ { "name": "ФИОИзExcel", "type": "String(150)" } ],
-      "resources": [ { "name": "Сотрудник", "type": "CatalogRef.Сотрудники" } ],
-      "editable_by": ["Расчетчик", "ГлавныйРасчетчик", "Администратор"]
+      "dimensions": [
+        {
+          "name": "ФИОИзExcel",
+          "type": "String(150)"
+        }
+      ],
+      "resources": [
+        {
+          "name": "Сотрудник",
+          "type": "CatalogRef.Сотрудники"
+        }
+      ],
+      "editable_by": [
+        "Расчетчик",
+        "ГлавныйРасчетчик",
+        "Администратор"
+      ]
     },
     "on_multiple_found": "Не загружать, выбор вручную в предпросмотре, сохранить в регистр сопоставления",
     "on_dismissed_before_period": "Не загружать, в протокол, повторный приём не делать",
     "on_not_found": "Завести нового сотрудника (new_employees)"
   },
-
   "new_employees": {
     "enabled_default": true,
     "fio_parse": {
       "rule": "слово 1 = Фамилия, слово 2 = Имя, остальное = Отчество",
-      "flag_for_review_if": ["слов > 3", "латиница", "слов < 2"]
+      "flag_for_review_if": [
+        "слов > 3",
+        "латиница",
+        "слов < 2"
+      ]
     },
     "reuse_existing_individual": "Если найдено ФизическоеЛицо с таким ФИО, использовать его",
-    "create": ["Catalog.ФизическиеЛица", "Catalog.Сотрудники", "Document.ПриемНаРаботу (проводить)"],
+    "create": [
+      "Catalog.ФизическиеЛица",
+      "Catalog.Сотрудники",
+      "Document.ПриемНаРаботу (проводить)"
+    ],
     "hire_date": {
       "default": "первое число месяца из B3",
       "override_from_comment_regex": "дата\\s*при[её]ма\\s*:?\\s*(\\d{2}\\.\\d{2}\\.\\d{2,4})",
@@ -107,10 +300,16 @@
       }
     ],
     "position_mapping_note": "Остальные должности бухгалтер добавляет в настройках по той же структуре. Нет строки для должности -> человек не заводится, статус 'нет настройки для должности'",
-    "not_filled": ["паспорт", "СНИЛС", "ИНН", "дата рождения", "пол", "адрес"],
+    "not_filled": [
+      "паспорт",
+      "СНИЛС",
+      "ИНН",
+      "дата рождения",
+      "пол",
+      "адрес"
+    ],
     "protocol_list": "Заведены автоматически — дозаполнить кадровые данные"
   },
-
   "documents": [
     {
       "step": 2,
@@ -124,9 +323,16 @@
       "amount": "salary_amount",
       "fixed_result": true,
       "remove_rows_not_in_file": true,
-      "recalculate": ["НДФЛ", "Взносы"],
+      "recalculate": [
+        "НДФЛ",
+        "Взносы"
+      ],
       "post": "по настройке, по умолчанию нет",
-      "reference": { "number": "ФН00-000023", "date": "2026-08-31", "amount": 701498.33 }
+      "reference": {
+        "number": "ФН00-000023",
+        "date": "2026-08-31",
+        "amount": 701498.33
+      }
     },
     {
       "step": 3,
@@ -138,9 +344,16 @@
       "rows": "одна строка на человека, где bonus_amount > 0",
       "accrual_type": "УТОЧНИТЬ (вид, которым сделан ФН00-000047)",
       "amount": "bonus_amount",
-      "recalculate": ["НДФЛ", "Взносы"],
+      "recalculate": [
+        "НДФЛ",
+        "Взносы"
+      ],
       "post": "по настройке, по умолчанию нет",
-      "reference": { "number": "ФН00-000047", "date": "2026-08-31", "amount": 785700.00 }
+      "reference": {
+        "number": "ФН00-000047",
+        "date": "2026-08-31",
+        "amount": 785700.0
+      }
     },
     {
       "step": 4,
@@ -155,59 +368,131 @@
       "filter": "in_payroll_statement == true (способ оплаты 4dev)",
       "fill": "штатная команда Заполнить, затем удалить строки не из фильтра",
       "control": "итог ведомости == сумма total по строкам 4dev, иначе предупреждение со списком расхождений",
-      "reference": { "number": "ФН00-000057", "date": "2026-09-15", "amount": 794302.50, "employees": 28 }
+      "reference": {
+        "number": "ФН00-000057",
+        "date": "2026-09-15",
+        "amount": 794302.5,
+        "employees": 28
+      }
     }
   ],
-
   "duplicates": {
-    "document_key": ["Организация", "Месяц", "Комментарий"],
+    "document_key": [
+      "Организация",
+      "Месяц",
+      "Комментарий"
+    ],
     "if_not_posted": "предложить перезаполнить",
     "if_posted": "предупредить; перезаполнить только после подтверждения и отмены проведения",
     "never": "молча создавать второй документ",
     "employees": "повторно не заводить: находятся через регистр сопоставления"
   },
-
   "ui": {
     "settings_persisted": [
-      "организация", "лист", "строка заголовка", "ячейка периода",
-      "виды начислений (оклад, премия)", "таблица соответствия должностей",
-      "способы оплаты для ведомости ['4dev']", "вид выплаты", "число месяца выплаты (15)",
-      "комментарии документов", "проводить начисления автоматически (false)"
+      "Telegram: токен бота (безопасное хранилище), chat_id, маска имени файла, расписание задания, прокси, отвечать в чат, разрешённые отправители",
+      "организация",
+      "лист",
+      "строка заголовка",
+      "ячейка периода",
+      "виды начислений (оклад, премия)",
+      "таблица соответствия должностей",
+      "способы оплаты для ведомости ['4dev']",
+      "вид выплаты",
+      "число месяца выплаты (15)",
+      "комментарии документов",
+      "проводить начисления автоматически (false)"
     ],
-    "preview_columns": ["ФИО", "Должность", "Способ оплаты", "Сотрудник 1С", "Оклад (K+J)", "Премия (L+M)", "Итого (N)", "В ведомость", "Статус", "Фамилия/Имя/Отчество (для новых)", "Дата приёма (для новых)"],
-    "statuses": ["ОК", "новый — будет заведён", "нет настройки для должности", "несколько совпадений", "уволен", "USD"],
-    "step_flags": ["Завести новых сотрудников", "Начисление зарплаты", "Разовое начисление", "Ведомость на счета (4dev)"],
-    "execution_order": ["ПриемНаРаботу", "НачислениеЗарплаты", "РазовоеНачисление", "ВедомостьНаСчета"],
-    "controls": ["Итоги оклад/премия/итого против строки ИТОГО файла", "Сумма к выплате по 4dev"]
+    "preview_columns": [
+      "ФИО",
+      "Должность",
+      "Способ оплаты",
+      "Сотрудник 1С",
+      "Оклад (K+J)",
+      "Премия (L+M)",
+      "Итого (N)",
+      "В ведомость",
+      "Статус",
+      "Фамилия/Имя/Отчество (для новых)",
+      "Дата приёма (для новых)"
+    ],
+    "statuses": [
+      "ОК",
+      "новый — будет заведён",
+      "нет настройки для должности",
+      "несколько совпадений",
+      "уволен",
+      "USD"
+    ],
+    "step_flags": [
+      "Получить файл из Telegram",
+      "Завести новых сотрудников",
+      "Начисление зарплаты",
+      "Разовое начисление",
+      "Ведомость на счета (4dev)"
+    ],
+    "execution_order": [
+      "ПолучениеФайлаTelegram",
+      "ПриемНаРаботу",
+      "НачислениеЗарплаты",
+      "РазовоеНачисление",
+      "ВедомостьНаСчета"
+    ],
+    "controls": [
+      "Итоги оклад/премия/итого против строки ИТОГО файла",
+      "Сумма к выплате по 4dev"
+    ]
   },
-
   "protocol": [
     "ссылки и суммы созданных/изменённых документов",
     "список заведённых сотрудников со ссылками на Приём на работу",
     "сверка итогов с ИТОГО и сумма ведомости против суммы N по 4dev",
     "пропущенные строки с причинами"
   ],
-
   "rights": {
-    "run": ["Расчетчик", "ГлавныйРасчетчик", "Администратор"],
+    "run": [
+      "Расчетчик",
+      "ГлавныйРасчетчик",
+      "Администратор"
+    ],
     "hire_step_requires": "права кадровика",
     "statement_step_requires": "права на выплату",
     "on_no_rights": "шаг пропускается, запись в протокол"
   },
-
   "acceptance_tests": {
-    "input": { "file": "Выплаты Fansy 2026.xlsx", "sheet": "Данные для расчета", "period": "2026-08-01" },
+    "input": {
+      "file": "Выплаты Fansy 2026.xlsx",
+      "sheet": "Данные для расчета",
+      "period": "2026-08-01"
+    },
     "expected_totals": {
       "salary_amount_total": 701498.33,
-      "salary_breakdown": { "salary_K": 486850.00, "piecework_J": 214648.33 },
-      "bonus_amount_total": 785700.00,
+      "salary_breakdown": {
+        "salary_K": 486850.0,
+        "piecework_J": 214648.33
+      },
+      "bonus_amount_total": 785700.0,
       "rows_loaded": 37,
       "by_payment_method": {
-        "4dev":   { "people": 28, "salary": 339802.50, "bonus": 454500.00, "total": 794302.50 },
-        "сз-бв":  { "people": 7,  "salary": 301695.83, "bonus": 228900.00, "total": 530595.83 },
-        "крипта": { "people": 2,  "salary": 60000.00,  "bonus": 102300.00, "total": 162300.00 }
+        "4dev": {
+          "people": 28,
+          "salary": 339802.5,
+          "bonus": 454500.0,
+          "total": 794302.5
+        },
+        "сз-бв": {
+          "people": 7,
+          "salary": 301695.83,
+          "bonus": 228900.0,
+          "total": 530595.83
+        },
+        "крипта": {
+          "people": 2,
+          "salary": 60000.0,
+          "bonus": 102300.0,
+          "total": 162300.0
+        }
       },
-      "payroll_statement_total": 794302.50
+      "payroll_statement_total": 794302.5
     },
     "cases": [
       "Начисление зарплаты = 701 498,33, одна строка 'Оплата по окладу УУ' на человека, состав как в ФН00-000023",
@@ -218,16 +503,20 @@
       "Строки #N/A, пустые и ИТОГО не загружаются",
       "Повторная загрузка не создаёт дублей документов и сотрудников",
       "Сдвиг колонок при тех же заголовках не ломает загрузку",
-      "После обновления типовой ЗУП обработка работает"
+      "После обновления типовой ЗУП обработка работает",
+      "Telegram: августовский файл отправлен в чат -> в течение 30 минут созданы документы с эталонными суммами, бот ответил итогом",
+      "Telegram: повторная отправка того же файла не создаёт новых документов",
+      "Telegram: исправленный файл за тот же месяц перезаполняет непроведённые документы",
+      "Telegram: файл из другого чата игнорируется"
     ]
   },
-
   "open_questions": [
     "Ведомость ФН00-000057 = начисленному по 4dev без вычета НДФЛ: так задумано или ведомость правилась вручную? От этого зависит, заполнять штатно или фиксированными суммами из колонки N",
     "Кадровые данные для приёма на остальные должности (аккаунт-менеджер, саппорт, контент-менеджер, руководитель агентства и т. д.)",
     "Вид начисления для премии в Разовом начислении",
-    "Нужна ли загрузка из Google Таблицы по ссылке и по расписанию",
+    "В чат всегда присылают файл .xlsx или бывает ссылка на Google Таблицу?",
     "Что делать со строками в USD",
-    "Нужны ли ведомости для СЗ-БВ и крипты или они выплачиваются вне 1С"
+    "Нужны ли ведомости для СЗ-БВ и крипты или они выплачиваются вне 1С",
+    "Принимать файлы от любого участника чата или только от определённых пользователей?"
   ]
 }
