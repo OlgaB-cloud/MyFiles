@@ -18,11 +18,18 @@
     "chat_invite_link": "https://t.me/+MkKkPuP3QsUyYWZi",
     "note": "Ссылка-приглашение нужна только чтобы администратор добавил бота в чат; обработка работает через Bot API по chat_id",
     "api": "Telegram Bot API, https://api.telegram.org",
-    "bot_setup": [
-      "Создать бота через @BotFather",
-      "Добавить бота в чат",
-      "Отключить privacy mode (/setprivacy -> Disable) или сделать бота администратором чата"
-    ],
+    "bot": "@Fansy_TFM_bot",
+    "bot_setup": {
+      "done": [
+        "Бот @Fansy_TFM_bot добавлен в чат"
+      ],
+      "todo": [
+        "Отключить privacy mode (@BotFather -> /setprivacy -> Disable) или назначить бота администратором; после смены privacy mode удалить бота из чата и добавить заново",
+        "Передать разработчику токен бота лично и защищённым способом (не в чате, не в ТЗ, не в репозитории)",
+        "Проверить getWebhookInfo: если webhook занят другой системой, getUpdates работать не будет",
+        "Определить chat_id через getUpdates после любого сообщения в чате"
+      ]
+    },
     "bot_token_storage": "Безопасное хранилище 1С",
     "chat_id": "задаётся в настройках (вида -100…); сообщения из других чатов игнорировать",
     "allowed_senders": "опционально: список Telegram user_id в настройках; пусто = любой участник чата",
