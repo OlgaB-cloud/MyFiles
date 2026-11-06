@@ -45,6 +45,16 @@ def read_cult(path):
         code = ws.cell(r, 4).value
         if not code:
             continue
+        # A broken formula (e.g. a #REF! in the country lookup) caches an
+        # error string; never let it pass as zero or leak into MOSS.
+        for col in (5, 13, 15, *UNSUPPORTED):
+            v = ws.cell(r, col).value
+            if isinstance(v, str) and v.startswith('#'):
+                raise SystemExit(
+                    f'{path} row {r} ({code}) column '
+                    f'{openpyxl.utils.get_column_letter(col)} is {v}; '
+                    'fix the formula in CULT and recalculate'
+                )
         for col, label in UNSUPPORTED.items():
             v = ws.cell(r, col).value
             if isinstance(v, (int, float)) and v:
